@@ -1,13 +1,11 @@
 from langchain_openai import ChatOpenAI
 import os
-from dotenv import load_dotenv
+import streamlit as st
 
-# Load environment variables
-load_dotenv()
 
 def get_openai_model():
     # Get API key from environment variables
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = st.secrets("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OpenAI API key not found in environment variables")
         
