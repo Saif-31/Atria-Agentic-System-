@@ -84,20 +84,25 @@ def process_input():
         if st.session_state.input_type == "text":
             if st.session_state.text_input:
                 # Check for duplicate data before processing
-                db_manager = DatabaseManager()
-                duplicate_check = db_manager.check_duplicate_data(st.session_state.text_input)
-                
-                if duplicate_check.get("is_duplicate"):
-                    existing_session = duplicate_check.get("existing_session")
-                    similarity = duplicate_check.get("similarity", 0)
+                try:
+                    db_manager = DatabaseManager()
+                    duplicate_check = db_manager.check_duplicate_data(st.session_state.text_input)
                     
-                    # Set duplicate state to show the warning and buttons
-                    st.session_state.duplicate_detected = True
-                    st.session_state.duplicate_session = existing_session
-                    st.session_state.duplicate_similarity = similarity
-                    st.session_state.duplicate_input_type = "text"
-                    st.session_state.duplicate_input_data = st.session_state.text_input
-                    return  # Exit early to show duplicate warning
+                    if duplicate_check.get("is_duplicate"):
+                        existing_session = duplicate_check.get("existing_session")
+                        similarity = duplicate_check.get("similarity", 0)
+                        
+                        # Set duplicate state to show the warning and buttons
+                        st.session_state.duplicate_detected = True
+                        st.session_state.duplicate_session = existing_session
+                        st.session_state.duplicate_similarity = similarity
+                        st.session_state.duplicate_input_type = "text"
+                        st.session_state.duplicate_input_data = st.session_state.text_input
+                        return  # Exit early to show duplicate warning
+                except Exception as db_error:
+                    st.error(f"Database connection error: {str(db_error)}")
+                    st.error("Please check that MongoDB URI is correctly configured in Streamlit secrets.")
+                    return
                 
                 # Proceed with normal processing if no duplicates
                 result = process_user_input("text", st.session_state.text_input)
@@ -210,9 +215,22 @@ if not st.session_state.user_choice_made:
 if st.session_state.user_choice_made:
     if st.session_state.show_old_data:
         try:
-            # Retrieve old call data
-            db_manager = DatabaseManager()
-            old_sessions = db_manager.get_all_sessions(limit=20)
+            # Retrieve old call data with better error handling
+            try:
+                db_manager = DatabaseManager()
+                old_sessions = db_manager.get_all_sessions(limit=20)
+            except ValueError as ve:
+                st.error(f"Database Configuration Error: {str(ve)}")
+                st.error("Please ensure MONGODB_URI is properly configured in your Streamlit app secrets.")
+                st.info("To fix this:")
+                st.code("1. Go to your Streamlit app settings\n2. Click on 'Secrets'\n3. Add: MONGODB_URI = \"your-mongodb-connection-string\"")
+                st.session_state.show_old_data = False
+                st.rerun()  # Changed from return to st.rerun()
+            except Exception as db_error:
+                st.error(f"Database Connection Error: {str(db_error)}")
+                st.error("Failed to connect to MongoDB. Please check your connection string.")
+                st.session_state.show_old_data = False
+                st.rerun()  # Changed from return to st.rerun()
             
             if not old_sessions:
                 st.info("No previous call data found in the database.")
@@ -331,7 +349,7 @@ if st.session_state.duplicate_detected:
             # Process the new data anyway
             if st.session_state.duplicate_input_type == "text":
                 result = process_user_input("text", st.session_state.duplicate_input_data)
-            else:  # audio
+            else:
                 result = st.session_state.duplicate_temp_result
             
             st.session_state.result = result
