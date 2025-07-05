@@ -2,33 +2,24 @@ import os
 import uuid
 from datetime import datetime
 from typing import Dict, Any
-from dotenv import load_dotenv, find_dotenv
+import streamlit as st
 from pymongo import MongoClient
 from openai import OpenAI
 from langgraph.graph import Graph, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import Annotated, TypedDict
 
-# Enhance environment variable loading
-env_path = find_dotenv()
-if not env_path:
-    raise ValueError("No .env file found!")
-
-load_dotenv(env_path, override=True)
 
 # Add detailed API key validation
-api_key = os.getenv('OPENAI_API_KEY')
+try:
+    api_key = st.secrets["OPENAI_API_KEY"]
+except Exception as e:
+    api_key = os.getenv("OPENAI_API_KEY")  # Fallback for local development
+
 if not api_key or api_key.strip() == "":
-    print("\nEnvironment Loading Debug Info:")
-    print(f"- .env file location: {env_path}")
-    print(f"- .env file content preview:")
-    try:
-        with open(env_path, 'r') as f:
-            env_content = f.read().strip()
-            print("  " + "\n  ".join(line for line in env_content.split('\n') if 'SECRET' not in line.upper()))
-    except Exception as e:
-        print(f"  Error reading .env file: {e}")
-    raise ValueError("OPENAI_API_KEY is missing or empty in .env file")
+    print("\nAPI Key Loading Debug Info:")
+    print("API key not found in Streamlit secrets or environment variables")
+    raise ValueError("OPENAI_API_KEY is missing")
 
 print(f"OpenAI API key loaded successfully (length: {len(api_key)})")
 
@@ -49,9 +40,13 @@ class AgentState(TypedDict):
 # ================== MONGODB CONNECTION ==================
 class DatabaseManager:
     def __init__(self):
-        self.mongo_uri = os.getenv('MONGODB_URI')
+        try:
+            self.mongo_uri = st.secrets["MONGODB_URI"]
+        except Exception as e:
+            self.mongo_uri = os.getenv("MONGODB_URI")
+            
         if not self.mongo_uri:
-            raise ValueError("MongoDB URI not found in environment variables. Please set MONGODB_URI in your .env file.")
+            raise ValueError("MongoDB URI not found in secrets or environment variables.")
         
         self.client = MongoClient(self.mongo_uri)
         self.db = self.client.get_database('agent_system')
