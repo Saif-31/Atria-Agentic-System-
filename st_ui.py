@@ -2,9 +2,16 @@ import streamlit as st
 import os
 import tempfile
 from datetime import datetime
-from main import process_user_input, handle_user_response, DatabaseManager, generate_mom, process_agent_workflow
-from model import get_openai_model
-from agents import process_user_input as agent_process_input
+
+# Handle imports with error checking for deployment
+try:
+    from main import process_user_input, handle_user_response, DatabaseManager, generate_mom, process_agent_workflow
+    from model import get_openai_model
+    from agents import process_user_input as agent_process_input
+except ImportError as e:
+    st.error(f"Import error: {e}")
+    st.error("Please check that all required packages are installed correctly.")
+    st.stop()
 
 
 # Initialize session state variables
@@ -900,7 +907,7 @@ def format_mom_content(agent_state):
         mom += f"{qa.get('answer')}\n\n"
     
     return mom
-    
+
 
 
 
