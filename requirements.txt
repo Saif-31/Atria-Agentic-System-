@@ -8,3 +8,5 @@ pydantic
 python-dotenv
 streamlit
 pymongo
+regex
+typing-extensions
