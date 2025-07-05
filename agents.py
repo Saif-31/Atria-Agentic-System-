@@ -5,13 +5,26 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, Base
 from langchain_core.prompts import ChatPromptTemplate
 import operator
 import json
-from dotenv import load_dotenv
+import streamlit as st
 import os
 import regex as re
 from datetime import datetime
 
-# Load environment variables from .env file
-load_dotenv()
+# Function to get OpenAI model using Streamlit secrets
+def get_openai_model():
+    try:
+        api_key = st.secrets["OPENAI_API_KEY"]
+    except Exception as e:
+        # Fallback for local development
+        api_key = os.getenv("OPENAI_API_KEY")
+    
+    if not api_key:
+        raise ValueError("OpenAI API key not found")
+        
+    return ChatOpenAI(
+        api_key=api_key,
+        model="gpt-4o-mini"
+    )
 
 # Constants
 INTERVIEW_PROMPT = """# Role: Intellegent Adaptive Meeting Assistant
