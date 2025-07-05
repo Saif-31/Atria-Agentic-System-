@@ -1,0 +1,13 @@
+langgraph
+langchain
+langchain-core
+langchain-openai
+langsmith
+openai
+pydantic
+python-dotenv
+streamlit
+pymongo
+fastapi
+uvicorn[standard]
+python-multipart
