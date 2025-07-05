@@ -19,9 +19,15 @@ def load_environment_variables():
         # If we're in Streamlit, try to get secrets first
         if hasattr(st, 'secrets'):
             try:
-                env_vars['OPENAI_API_KEY'] = st.secrets.get('OPENAI_API_KEY')
-                env_vars['MONGODB_URI'] = st.secrets.get('MONGODB_URI')
+                # Access secrets directly without .get() to see if they exist
+                if 'OPENAI_API_KEY' in st.secrets:
+                    env_vars['OPENAI_API_KEY'] = st.secrets['OPENAI_API_KEY']
+                if 'MONGODB_URI' in st.secrets:
+                    env_vars['MONGODB_URI'] = st.secrets['MONGODB_URI']
+                    
                 print("Successfully loaded secrets from Streamlit")
+                print(f"OPENAI_API_KEY found: {'Yes' if env_vars['OPENAI_API_KEY'] else 'No'}")
+                print(f"MONGODB_URI found: {'Yes' if env_vars['MONGODB_URI'] else 'No'}")
                 return env_vars
             except Exception as e:
                 print(f"Error loading Streamlit secrets: {e}")
@@ -46,30 +52,16 @@ def load_environment_variables():
 # Load environment variables with better error handling
 try:
     env_vars = load_environment_variables()
+    print(f"Environment variables loaded: {list(env_vars.keys())}")
+    for key, value in env_vars.items():
+        if value:
+            print(f"{key}: Found (length: {len(str(value))})")
+        else:
+            print(f"{key}: Not found")
 except Exception as e:
     print(f"Critical error loading environment variables: {e}")
     # Provide fallback for basic functionality
     env_vars = {'OPENAI_API_KEY': None, 'MONGODB_URI': None}
-
-# Validate required environment variables
-required_vars = ['OPENAI_API_KEY', 'MONGODB_URI']
-missing_vars = [var for var in required_vars if not env_vars.get(var)]
-
-if missing_vars:
-    error_msg = f"Missing required environment variables: {', '.join(missing_vars)}"
-    print(f"\nConfiguration Error: {error_msg}")
-    print("\nFor Streamlit Cloud deployment:")
-    print("1. Go to your app settings")
-    print("2. Click on 'Secrets'") 
-    print("3. Add the following secrets:")
-    for var in missing_vars:
-        print(f'   {var} = "your-{var.lower().replace("_", "-")}-here"')
-    print("\nFor local development:")
-    print("1. Create a .env file in the project root")
-    print("2. Add the same variables to the .env file")
-    
-    # Don't raise error immediately - let the app start and show the error in UI
-    # raise ValueError(error_msg)
 
 # Set environment variables for the rest of the application
 for key, value in env_vars.items():
@@ -77,10 +69,17 @@ for key, value in env_vars.items():
         os.environ[key] = value
 
 api_key = env_vars.get('OPENAI_API_KEY')
+mongodb_uri = env_vars.get('MONGODB_URI')
+
 if api_key:
     print(f"OpenAI API key loaded successfully (length: {len(api_key)})")
 else:
     print("Warning: OpenAI API key not loaded")
+
+if mongodb_uri:
+    print(f"MongoDB URI loaded successfully (length: {len(mongodb_uri)})")
+else:
+    print("Warning: MongoDB URI not loaded")
 
 # ================== STATE DEFINITION ==================
 class AgentState(TypedDict):
@@ -99,9 +98,32 @@ class AgentState(TypedDict):
 # ================== MONGODB CONNECTION ==================
 class DatabaseManager:
     def __init__(self):
-        self.mongo_uri = env_vars.get('MONGODB_URI')
+        # Get MongoDB URI from multiple sources
+        self.mongo_uri = None
+        
+        # Try environment variable first (set by load_environment_variables)
+        self.mongo_uri = os.getenv('MONGODB_URI')
+        
+        # If not found, try Streamlit secrets directly
         if not self.mongo_uri:
-            raise ValueError("MongoDB URI not found. Please configure MONGODB_URI in Streamlit secrets or .env file.")
+            try:
+                import streamlit as st
+                if hasattr(st, 'secrets') and 'MONGODB_URI' in st.secrets:
+                    self.mongo_uri = st.secrets['MONGODB_URI']
+                    print("MongoDB URI loaded directly from Streamlit secrets")
+            except Exception as e:
+                print(f"Could not load MongoDB URI from Streamlit secrets: {e}")
+        
+        # If still not found, try global env_vars
+        if not self.mongo_uri:
+            self.mongo_uri = env_vars.get('MONGODB_URI')
+        
+        print(f"DatabaseManager init - MongoDB URI found: {'Yes' if self.mongo_uri else 'No'}")
+        
+        if not self.mongo_uri:
+            error_msg = "MongoDB URI not found. Please configure MONGODB_URI in Streamlit secrets or .env file."
+            print(f"DatabaseManager Error: {error_msg}")
+            raise ValueError(error_msg)
         
         try:
             self.client = MongoClient(self.mongo_uri)
