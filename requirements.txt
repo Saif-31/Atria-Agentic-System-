@@ -8,6 +8,3 @@ pydantic
 python-dotenv
 streamlit
 pymongo
-fastapi
-uvicorn[standard]
-python-multipart
